@@ -1,0 +1,6 @@
+20031116 Math::RungeKutta Numerical Integration
+20031117 rk_auto works using double-step
+20031118 adopt Merson's method as the default rk4
+20031118 rk4_auto saves and reuses @f0
+20031119 more robust timestep adjustment
+20031119 bugs fixed & extra robustness in rk4_auto
