@@ -7,7 +7,8 @@
 #            modify it under the same terms as Perl itself.             #
 #########################################################################
 
-require './RungeKutta.pm'; import Math::RungeKutta qw(:ALL);
+use Math::RungeKutta qw(:ALL);
+use Test::Simple tests => 6;
 
 my $func_evals = 0;
 my $i_test     = 0;
@@ -37,13 +38,7 @@ foreach $algorithm ('rk2','rk4','rk4_classical','rk4_ralston') {
 
 	foreach (1..$n) { ($t, @y) = &{$algorithm}( \@y, \&dydt, $t, $dt ); }
 	my $err0 = abs $y[$[]; my $err1 = abs ($y[$[+1]-1.0);
-	if ($err0 < $passmark0{$algorithm} && $err1 < $passmark1{$algorithm}) {
-		$n_passed++; print STDERR "test $i_test: $algorithm ok\n";
-	} else {
-		$n_failed++;
-		printf STDERR "test $i_test: $algorithm failed, y0=%g y1=%g\n",
-		 $y[$[], $y[$[+1];
-	}
+	ok (($err0 < $passmark0{$algorithm} && $err1 < $passmark1{$algorithm}), $algorithm);
 }
 $algorithm = 'rk4_auto';
 my ($t_midpoint, @y_midpoint);
@@ -61,27 +56,15 @@ MODE: foreach $mode ('epsilon','errors') {
 		($t, $dt, @y) = &rk4_auto( \@y, \&dydt, $t, $dt, $epsilon );
 		($t_midpoint, @y_midpoint) = &rk4_auto_midpoint();
 		if ($func_evals > 500) {
-			$n_failed++; print STDERR
-			"test $i_test: rk4_auto($mode) failed, $func_evals func evals\n";
+			ok(0, "rk4_auto($mode) failed, $func_evals func evals");
 			next MODE;
 		}
 	}
 	$i++; $dt = $twopi-$t;
 	($t, @y) = &rk4( \@y, \&dydt, $t, $dt );
 	my $err0 = abs $y[$[]; my $err1 = abs ($y[$[+1]-1.0);
-	if ($err0 < $passmark0{$mode} && $err1 < $passmark1{$mode}) {
-		$n_passed++; print STDERR "test $i_test: rk4_auto($mode) ok\n";
-	} else {
-		$n_failed++;
-		printf STDERR "test $i_test: rk4_auto($mode) failed, y0=%g y1=%g\n",
-		 $y[$[], $y[$[+1];
-	}
-}
-
-if ($n_failed) {
-	print STDERR "failed $n_failed tests out of $i_test :-(\n"; exit 1;
-} else {
-	print STDERR "passed all $i_test tests :-)\n"; exit 0;
+	ok (($err0 < $passmark0{$mode} && $err1 < $passmark1{$mode}),
+	"rk4_auto($mode)");
 }
 
 __END__

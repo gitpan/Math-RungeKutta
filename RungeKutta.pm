@@ -9,7 +9,7 @@
 
 package Math::RungeKutta;
 no strict;
-$VERSION = '1.00';
+$VERSION = '1.01';
 # gives a -w warning, but I'm afraid $VERSION .= ''; would confuse CPAN
 require Exporter;
 @ISA = qw(Exporter);
@@ -397,9 +397,10 @@ to choose a good step-size, and can also save CPU time by automatically
 increasing the step-size when the solution is changing only slowly.
 
 I<Perl> is not the right language for high-end numerical integration like
-global weather simulation, colliding galaxies and so on, but as Gear says,
-"Many equations that are solved on digital computers can be classified as
-trivial by the fact that even with an inefficient method of solution,
+global weather simulation, colliding galaxies and so on (if you need
+something like this you could check out I<xmds>).  But as Gear says,
+"Many equations that are solved on digital computers can be classified
+as trivial by the fact that even with an inefficient method of solution,
 little computer time is used. Economics then dictates that the best method
 is the one that minimises the human time of preparation of the program."
 
@@ -408,7 +409,7 @@ be helpful in solving systems of differential equations which arise
 within a I<Perl> context, such as economic, financial, demographic
 or ecological modelling, mechanical or process dynamics, etc.
 
-Version 1.00,
+Version 1.01,
 #COMMENT#
 
 =head1 SUBROUTINES
@@ -649,6 +650,7 @@ http://www.pjb.com.au/comp/walshtransform.html, Math::WalshTransform,
 http://www.pjb.com.au/comp/evol.html, Math::Evol,
 http://www.pjb.com.au/comp/clui.html, Term::Clui,
 http://www.pjb.com.au/comp/tea.html, Crypt::Tea,
+http://www.xmds.org/
 perl(1).
 
 =cut
