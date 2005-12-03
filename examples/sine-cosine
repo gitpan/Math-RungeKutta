@@ -7,8 +7,7 @@
 #            modify it under the same terms as Perl itself.             #
 #########################################################################
 use Term::Clui;
-require '../RungeKutta.pm';
-import Math::RungeKutta qw(:DEFAULT arr2txt);
+use Math::RungeKutta qw(:ALL arr2txt);
 
 my $func_evals = 0;
 sub dydt { my ($t, @y) = @_;
@@ -22,7 +21,7 @@ print "Simulates one sine/cosine cycle: dydt[0]=y[1], dydt[1]=-y[0]\n";
 print "   ( use arrow keys and <Return>, or q to quit )\n";
 while (1) {
 	$algorithm = &choose("Algorithm ?",
-	 'rk2','rk4','rk4_classical','rk4_roulston','rk4_auto');
+	 'rk2','rk4','rk4_classical','rk4_ralston','rk4_auto');
 	last unless $algorithm;
 	$n = &choose('Timesteps per cycle ?','6','8','12','16','24','32');
 	last unless $n;
@@ -84,12 +83,12 @@ sine-cosine - Perl script to explore Math::RungeKutta
 
 =head1 SYNOPSIS
 
- sine-cosine
+ perl exapmles/sine-cosine
 
 =head1 DESCRIPTION
 
-This script uses I<Math::RungeKutta> integrate the equations
-I<dy0/dt=y1 dy1/dt=-y0> equations from I<t=0> to I<t=2pi>
+This script uses I<Math::RungeKutta> to integrate the equations
+I<dy0/dt=y1 dy1/dt=-y0> from I<t=0> to I<t=2pi>
 which of course should give one cycle of sine and cosine waves.
 
 It uses I<Term::Clui> to give you a choice of the various methods that
@@ -106,10 +105,10 @@ Based on Math::RungeKutta and Term::Clui
 
 =head1 SEE ALSO
 
+examples/exponentials,
 examples/three-body,
-http://www.pjb.com.au/comp/rungekutta.html,
-http://www.pjb.com.au/comp/clui.html,
-http://www.pjb.com.au/, perl(1).
+Math::RungeKutta,
+Term::Clui
 
 =cut
 

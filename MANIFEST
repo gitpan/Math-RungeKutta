@@ -6,5 +6,6 @@ Clui
 Makefile.PL
 test.pl
 RungeKutta.pm
+examples/exponentials
 examples/sine-cosine
 examples/three-body

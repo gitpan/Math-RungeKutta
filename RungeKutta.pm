@@ -8,8 +8,8 @@
 #########################################################################
 
 package Math::RungeKutta;
-no strict;
-$VERSION = '1.01';
+no strict; no warnings;
+$VERSION = '1.02';
 # gives a -w warning, but I'm afraid $VERSION .= ''; would confuse CPAN
 require Exporter;
 @ISA = qw(Exporter);
@@ -345,7 +345,7 @@ Math::RungeKutta.pm - Integrating Systems of Differential Equations
 
 =head1 SYNOPSIS
 
- use Math::RungeKutta.pm;
+ use Math::RungeKutta;
  sub dydt { my ($t, @y) = @_;   # the derivative function
    my @dydt; ... ; return @dydt;
  }
@@ -409,7 +409,7 @@ be helpful in solving systems of differential equations which arise
 within a I<Perl> context, such as economic, financial, demographic
 or ecological modelling, mechanical or process dynamics, etc.
 
-Version 1.01,
+Version 1.02,
 #COMMENT#
 
 =head1 SUBROUTINES
@@ -645,12 +645,11 @@ C. William Gear, Prentice-Hall, 1971
 
 See also the scripts examples/sine-cosine and examples/three-body,
 http://www.pjb.com.au/,
-http://www.pjb.com.au/comp/rungekutta.html,
-http://www.pjb.com.au/comp/walshtransform.html, Math::WalshTransform,
-http://www.pjb.com.au/comp/evol.html, Math::Evol,
-http://www.pjb.com.au/comp/clui.html, Term::Clui,
-http://www.pjb.com.au/comp/tea.html, Crypt::Tea,
+http://www.pjb.com.au/comp/,
+Math::WalshTransform,
+Math::Evol,
+Term::Clui,
+Crypt::Tea,
 http://www.xmds.org/
-perl(1).
 
 =cut

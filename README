@@ -31,12 +31,11 @@ To install:
    perl Install
 
 that's all ! or you can still do it the old way ...
-	perl Makefile.PL
-	make
-	make test
-	make install
+   perl Makefile.PL
+   make
+   make test
+   make install
 
-For up-to-date source, see http://www.cpan.org/SITES.html
-and look for the directory authors/id/P/PJ/PJB
+For up-to-date source, see http://search.cpan.org/~pjb
 
 Peter J Billam    www.pjb.com.au   www.pjb.com.au/comp/contact.html

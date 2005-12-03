@@ -6,3 +6,4 @@
 20031119 bugs fixed & extra robustness in rk4_auto
 20040809 'perl Install' works better on solaris without Term::Size
 20050121 1.01 test.pl uses Test::Simple
+20051203 1.02 ./example scripts tidied up

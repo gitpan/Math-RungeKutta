@@ -6,8 +6,7 @@
 #     This script is free software; you can redistribute it and/or      #
 #            modify it under the same terms as Perl itself.             #
 #########################################################################
-require '../RungeKutta.pm';
-import Math::RungeKutta;
+use Math::RungeKutta;
 
 my ($maxcols, $maxrows);
 eval 'require "Term/Size.pm"';
@@ -127,49 +126,11 @@ __END__
 
 =head1 NAME
 
-t - Perl script to test Math::RungeKutta
-
-=head1 SYNOPSIS
-
-=head1 DESCRIPTION
-
-This script
-
-=head1 SUBROUTINES
-
-=over 3
-
-=item I<subrname>( $arg1, $arg2 );
-
-=back
-
-=head1 AUTHOR
-
-Peter J Billam  www.pjb.com.au/comp/contact.html
-
-=head1 CREDITS
-
-Based on
-
-=head1 SEE ALSO
-
-http://www.pjb.com.au/, perl(1).
-
-=cut
-
-
-
-__END__
-
-=pod
-
-=head1 NAME
-
 three-body - Perl script to illustrate Math::RungeKutta
 
 =head1 SYNOPSIS
 
- three-body
+ perl examples/three-body
 
 =head1 DESCRIPTION
 
@@ -199,9 +160,8 @@ Based on Math::RungeKutta
 
 =head1 SEE ALSO
 
+examples/exponentials,
 examples/sine-cosine,
-http://www.pjb.com.au/comp/rungekutta.html,
-http://www.pjb.com.au/comp/clui.html,
-http://www.pjb.com.au/, perl(1).
-
+Math::RungeKutta,
+Term::Size
 
