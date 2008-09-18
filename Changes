@@ -7,3 +7,4 @@
 20040809 'perl Install' works better on solaris without Term::Size
 20050121 1.01 test.pl uses Test::Simple
 20051203 1.02 ./example scripts tidied up
+20080919 1.03 translation into JavaScript ./js/RungeKutta.js introduced

@@ -9,7 +9,7 @@
 
 package Math::RungeKutta;
 no strict; no warnings;
-$VERSION = '1.02';
+$VERSION = '1.03';
 # gives a -w warning, but I'm afraid $VERSION .= ''; would confuse CPAN
 require Exporter;
 @ISA = qw(Exporter);
@@ -146,10 +146,10 @@ sub rk4_auto { my $ynref=shift; my $dydtref=shift; $t=shift;
 	}
 	my $ny = $#$ynref; my $i;
 
-	my @y1; $#y1 = $#$ynref;
-	$#y2 = $#$ynref;
-	my @y3; $#y3 = $#$ynref;
-	$#saved_k0 = $#$ynref; @saved_k0 = &{$dydtref}($t, @$ynref);
+	my @y1; $#y1 = ny;
+	$#y2 = ny;
+	my @y3; $#y3 = ny;
+	$#saved_k0 = ny; @saved_k0 = &{$dydtref}($t, @$ynref);
 	my $resizings = 0;
 	my $highest_low_error = 0.1E-99; my $highest_low_dt = 0.0;
 	my $lowest_high_error = 9.9E99;  my $lowest_high_dt = 9.9E99;
@@ -241,6 +241,7 @@ sub rk4_ralston { my ($ynref, $dydtref, $t, $dt) = @_;
 	# Ralston's minimisation of error bounds, see Gear p36
 	my $alpha1=0.4; my $alpha2 = 0.4557372542; # = .875 - .1875*(sqrt 5);
 
+	my @k0; $#k0=$ny;
 	if ($use_saved_k0) { @k0 = @saved_k0;
 	} else { @k0 = &{$dydtref}($t, @$ynref);
 	}
@@ -286,6 +287,7 @@ sub rk4_classical { my ($ynref, $dydtref, $t, $dt) = @_;
 
 	# The Classical 4th-order Runge-Kutta Method, see Gear p35
 
+	my @k0; $#k0=$ny;
 	if ($use_saved_k0) { @k0 = @saved_k0;
 	} else { @k0 = &{$dydtref}($t, @$ynref);
 	}
@@ -409,7 +411,7 @@ be helpful in solving systems of differential equations which arise
 within a I<Perl> context, such as economic, financial, demographic
 or ecological modelling, mechanical or process dynamics, etc.
 
-Version 1.02,
+Version 1.03,
 #COMMENT#
 
 =head1 SUBROUTINES
@@ -619,6 +621,28 @@ vertical component of the velocity, do something like
 and thus, again, let the numerical integration solve just the
 smooth part of the problem.
 
+=head1 JAVASCRIPT
+
+In the C<js/> subdirectory of the install directory there is I<RungeKutta.js>,
+which is an exact translation of this Perl code into JavaScript.
+SYNOPSIS:
+
+ <SCRIPT type="text/javascript" src="RungeKutta.js"> </SCRIPT>
+ <SCRIPT type="text/javascript">
+ var dydt = function (t, y) {  // the derivative function
+   var dydt_array; ... ; return dydt_array;
+ }
+ var y = new Array();
+ y = initial_y(); var t = 0; var dt=.4;  // the initial conditions
+ // For automatic timestep adjustment ...
+ var tmp;  // Array of return vaules
+ while (t < tfinal) {
+    tmp = rk4_auto(y, dydt, t, dt, 0.00001);
+    t=tmp[0]; dt=tmp[1]; y=tmp[2];
+    display(t, y);   // e.g. uses wz_jsgraphics.js
+ }
+ </SCRIPT>
+
 =head1 AUTHOR
 
 Peter J Billam, http://www.pjb.com.au/comp/contact.html
@@ -649,7 +673,7 @@ http://www.pjb.com.au/comp/,
 Math::WalshTransform,
 Math::Evol,
 Term::Clui,
-Crypt::Tea,
+Crypt::Tea_JS,
 http://www.xmds.org/
 
 =cut
