@@ -15,10 +15,10 @@ function ok (bool, str) {
 		document.write("<TR><TD>"+str+"</TD><TD><B>FAILED</B></TD></TR>\n");
 	}
 }
-var dydt = function (t, y) {
+var dydt = function (t, yX) {
 	var dydt_arr = new Array(2);
-	dydt_arr[0] = y[1];
-	dydt_arr[1] = 0.0 - y[0];
+	dydt_arr[0] = yX[1];
+	dydt_arr[1] = 0.0 - yX[0];
 	func_evals++;
 	return dydt_arr;
 }

@@ -9,7 +9,7 @@
 
 package Math::RungeKutta;
 no strict; no warnings;
-$VERSION = '1.03';
+$VERSION = '1.04';
 # gives a -w warning, but I'm afraid $VERSION .= ''; would confuse CPAN
 require Exporter;
 @ISA = qw(Exporter);
@@ -351,7 +351,7 @@ Math::RungeKutta.pm - Integrating Systems of Differential Equations
  sub dydt { my ($t, @y) = @_;   # the derivative function
    my @dydt; ... ; return @dydt;
  }
- @y = @initial_y; $t=0; $dt=.4;  # the initial conditions
+ @y = @initial_y; $t=0; $dt=0.4;  # the initial conditions
  # For automatic timestep adjustment ...
  while ($t < $tfinal) {
     ($t, $dt, @y) = &rk4_auto(\@y, \&dydt, $t, $dt, 0.00001);
@@ -411,8 +411,7 @@ be helpful in solving systems of differential equations which arise
 within a I<Perl> context, such as economic, financial, demographic
 or ecological modelling, mechanical or process dynamics, etc.
 
-Version 1.03,
-#COMMENT#
+Version 1.04
 
 =head1 SUBROUTINES
 
@@ -633,15 +632,19 @@ SYNOPSIS:
    var dydt_array; ... ; return dydt_array;
  }
  var y = new Array();
- y = initial_y(); var t = 0; var dt=.4;  // the initial conditions
+ y = initial_y(); var t = 0; var dt=0.4;  // the initial conditions
  // For automatic timestep adjustment ...
  var tmp;  // Array of return vaules
  while (t < tfinal) {
     tmp = rk4_auto(y, dydt, t, dt, 0.00001);
     t=tmp[0]; dt=tmp[1]; y=tmp[2];
-    display(t, y);   // e.g. uses wz_jsgraphics.js
+    display(t, y);   // e.g. could use wz_jsgraphics.js or SVG
  }
  </SCRIPT>
+
+I<RungeKutta.js> uses several global variables
+which all begin with the letters C<_rk_> 
+so you should avoid introducing variables beginning with these characters.
 
 =head1 AUTHOR
 

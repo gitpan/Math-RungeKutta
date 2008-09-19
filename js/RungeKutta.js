@@ -5,10 +5,10 @@
 //                                                                       #
 //     This module is free software; you can redistribute it and/or      #
 //            modify it under the same terms as Perl itself.             #
-//  Documentation in http://search.cpan.org/~pjb/Math-RungeKutta-1.02/   #
+//     Documentation in http://search.cpan.org/~pjb/Math-RungeKutta      #
 //########################################################################
 
-// VERSION = '1.03';
+// VERSION = '1.04';
 
 function rk2 (ynref, dydtref, t, dt) {
 	var gamma = 0.75;  // Ralston's minimisation of error bounds
@@ -30,12 +30,14 @@ function rk2 (ynref, dydtref, t, dt) {
 	}
 	return [t+dt, ynp1];
 }
-var saved_k0 = new Array(); var use_saved_k0 = false;
+
+var _rk_saved_k0 = new Array(); var _rk_use_saved_k0 = false;
 function rk4 (ynref, dydtref, t, dt) {
 	var ny = ynref.length; var i;
 
 	var k0 = new Array(ny);
-	if (use_saved_k0) { k0 = saved_k0;
+	if (_rk_use_saved_k0) {
+		for (i=0; i<ny; i++) { k0[i] = _rk_saved_k0[i]; }
 	} else { k0 = dydtref(t, ynref);
 	}
 	for (i=0; i<ny; i++) { k0[i] *= dt; }
@@ -77,9 +79,9 @@ function rk4 (ynref, dydtref, t, dt) {
 	return [t+dt, ynp1];
 }
 
-var saved_t; var halfdt; var y2 = new Array();
+var _rk_saved_t; var _rk_halfdt; var _rk_y2 = new Array();
 function rk4_auto (ynref, dydtref, t, dt, arg4) {
-	saved_t = t;
+	_rk_saved_t = t;
 
 	if (dt == 0.0) { dt = 0.1; }
 	var errors = new Array(); var epsilon; var epsilon_mode = true;
@@ -92,23 +94,23 @@ function rk4_auto (ynref, dydtref, t, dt, arg4) {
 	var ny = ynref.length; var i;
 
 	var y1 = new Array(ny);
-	y2.length = ny;
+	_rk_y2.length = ny;
 	var y3 = new Array(ny);
-	saved_k0.length = ny; saved_k0 = dydtref(t, ynref);
+	var tmp;  // return values
+	// _rk_saved_k0.length = ny;
+	_rk_saved_k0 = dydtref(t, ynref);
 	var resizings = 0;
 	var highest_low_error = 0.1E-99; var highest_low_dt = 0.0;
 	var lowest_high_error = 9.9E99;  var lowest_high_dt = 9.9E99;
-	var tmp;  // return values
 	while (1) {
-		halfdt = 0.5 * dt;
-		use_saved_k0 = true;
-		use_saved_k0 = false;  // Fixes the bug! slightly slower :-(
+		_rk_halfdt = 0.5 * dt;
+		_rk_use_saved_k0 = true;
 		tmp = rk4(ynref, dydtref, t, dt);
 		y1=tmp[1];
-		tmp = rk4(ynref, dydtref, t, halfdt);
-		y2=tmp[1];
-		use_saved_k0 = false;
-		tmp = rk4(y2, dydtref, t+halfdt, halfdt);
+		tmp = rk4(ynref, dydtref, t, _rk_halfdt);
+		_rk_y2=tmp[1];
+		_rk_use_saved_k0 = false;
+		tmp = rk4(_rk_y2, dydtref, t+_rk_halfdt, _rk_halfdt);
 		y3=tmp[1];
 
 		var relative_error;
@@ -131,14 +133,12 @@ function rk4_auto (ynref, dydtref, t, dt, arg4) {
 			if (dt > highest_low_dt) {
 				highest_low_error = relative_error; highest_low_dt = dt;
 			}
-		} else {
-			if (relative_error > 1.67) {
-				if (dt < lowest_high_dt) {
-					lowest_high_error = relative_error; lowest_high_dt = dt;
-				}
-			} else {
-				break;
+		} else if (relative_error > 1.67) {
+			if (dt < lowest_high_dt) {
+				lowest_high_error = relative_error; lowest_high_dt = dt;
 			}
+		} else {
+			break;
 		}
 		if (lowest_high_dt<9.8E99 && highest_low_dt>1.0E-99) { // interpolate
 			var denom = Math.log(lowest_high_error/highest_low_error);
@@ -159,22 +159,21 @@ function rk4_auto (ynref, dydtref, t, dt, arg4) {
 		resizings++;
 		if (resizings>4 && highest_low_dt>1.0E-99) {
 			// hope a small step forward gets us out of this mess ...
-			dt = highest_low_dt;  halfdt = 0.5 * dt;
-			use_saved_k0 = true;
-			use_saved_k0 = false;  // Fixes the bug! slightly slower :-(
-			tmp = rk4(ynref, dydtref, t, halfdt);
-			y2=tmp[1];
-			use_saved_k0 = false;
-			tmp = rk4(y2, dydtref, t+halfdt, halfdt);
+			dt = highest_low_dt;  _rk_halfdt = 0.5 * dt;
+			_rk_use_saved_k0 = true;
+			tmp = rk4(ynref, dydtref, t, _rk_halfdt);
+			_rk_y2=tmp[1];
+			_rk_use_saved_k0 = false;
+			tmp = rk4(_rk_y2, dydtref, t+_rk_halfdt, _rk_halfdt);
 			y3=tmp[1];
 			break;
 		}
 	}
-
 	return [t+dt, dt, y3];
 }
+
 function rk4_auto_midpoint () {
-	return [saved_t+halfdt, y2];
+	return [_rk_saved_t+_rk_halfdt, _rk_y2];
 }
 
 // ---------------------- EXPORT_OK routines ----------------------
@@ -183,7 +182,7 @@ function rk4_ralston (ynref, dydtref, t, dt) {
 	var ny = ynref.length; var i;
 	var alpha1=0.4; var alpha2 = 0.4557372542;
 	var k0 = new Array(ny);
-	if (use_saved_k0) { k0 = saved_k0;
+	if (_rk_use_saved_k0) { k0 = _rk_saved_k0;
 	} else { k0 = dydtref(t, ynref);
 	}
 	for (i=0; i<ny; i++) { k0[i] *= dt; }
@@ -219,7 +218,7 @@ function rk4_classical (ynref, dydtref, t, dt) {
 	// The Classical 4th-order Runge-Kutta Method, see Gear p35
 	var ny = ynref.length; var i;
 	var k0 = new Array(ny);
-	if (use_saved_k0) { k0 = saved_k0;
+	if (_rk_use_saved_k0) { k0 = _rk_saved_k0;
 	} else { k0 = dydtref(t, ynref);
 	}
 	for (i=0; i<ny; i++) { k0[i] *= dt; }
