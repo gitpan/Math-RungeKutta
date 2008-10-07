@@ -9,7 +9,7 @@
 
 package Math::RungeKutta;
 no strict; no warnings;
-$VERSION = '1.04';
+$VERSION = '1.05';
 # gives a -w warning, but I'm afraid $VERSION .= ''; would confuse CPAN
 require Exporter;
 @ISA = qw(Exporter);
@@ -242,9 +242,7 @@ sub rk4_ralston { my ($ynref, $dydtref, $t, $dt) = @_;
 	my $alpha1=0.4; my $alpha2 = 0.4557372542; # = .875 - .1875*(sqrt 5);
 
 	my @k0; $#k0=$ny;
-	if ($use_saved_k0) { @k0 = @saved_k0;
-	} else { @k0 = &{$dydtref}($t, @$ynref);
-	}
+	@k0 = &{$dydtref}($t, @$ynref);
 	for ($i=$[; $i<=$ny; $i++) { $k0[$i] *= $dt; }
 
 	my @k1; $#k1=$ny;
@@ -288,9 +286,7 @@ sub rk4_classical { my ($ynref, $dydtref, $t, $dt) = @_;
 	# The Classical 4th-order Runge-Kutta Method, see Gear p35
 
 	my @k0; $#k0=$ny;
-	if ($use_saved_k0) { @k0 = @saved_k0;
-	} else { @k0 = &{$dydtref}($t, @$ynref);
-	}
+	@k0 = &{$dydtref}($t, @$ynref);
 	for ($i=$[; $i<=$ny; $i++) { $k0[$i] *= $dt; }
 
 	my @eta1; $#eta1=$ny;
@@ -411,7 +407,7 @@ be helpful in solving systems of differential equations which arise
 within a I<Perl> context, such as economic, financial, demographic
 or ecological modelling, mechanical or process dynamics, etc.
 
-Version 1.04
+Version 1.05
 
 =head1 SUBROUTINES
 
@@ -421,9 +417,9 @@ Version 1.04
 
 where the arguments are:
  I<\@y> a reference to the array of initial values of variables,
- I<\&dydt> a reference to the function calculating the derivatives
- I<$t> the initial time
- I<$dt> the timestep
+ I<\&dydt> a reference to the function calculating the derivatives,
+ I<$t> the initial time,
+ I<$dt> the timestep.
 
 The algorithm used is that derived by Ralston, which uses Lotkin's bound
 on the derivatives, and minimises the solution error (gamma=3/4).
@@ -451,14 +447,14 @@ at the completion of the timestep.
 =item I<rk4_auto>( \@y, \&dydt, $t, $dt, \@errors )
 
 In the first form the arguments are:
- I<\@y> a reference to the array of initial values of variables
- I<\&dydt> a reference to the function calculating the derivatives
- I<$t> the initial time
- I<$dt> the initial timestep
+ I<\@y> a reference to the array of initial values of variables,
+ I<\&dydt> a reference to the function calculating the derivatives,
+ I<$t> the initial time,
+ I<$dt> the initial timestep,
  I<$epsilon> the errors per step will be about $epsilon*$ymax
 
 In the second form the last argument is:
- I<\@errors> a reference to an array of maximum permissible errors
+ I<\@errors> a reference to an array of maximum permissible errors.
 
 The first I<$epsilon> calling form is useful when all the elements of
 I<@y> are in the same units and have the same typical size (e.g. y[10]
@@ -520,8 +516,8 @@ values at the midpoint of the previous call to I<rk4_auto>.
 This subroutine will be passed by reference as the second argument to
 I<rk2>, I<rk4> and I<rk4_auto>. The name doesn't matter of course.
 It must expect the following arguments:
- I<$t> the time (in case the equations are time-dependent)
- I<@y> the array of values of variables
+ I<$t> the time (in case the equations are time-dependent),
+ I<@y> the array of values of variables.
 
 It must return an array of the derivatives
 of the variables with respect to time.
@@ -594,12 +590,12 @@ Alas, things can go wrong in numerical integration.
 
 One of the most fundamental is B<instability>. If you choose a timestep
 I<$dt> much larger than time-constants implied in your derivative
-function I<@dydt>, then the numerical solution will oscillate wildy,
+function I<&dydt>, then the numerical solution will oscillate wildy,
 and bear no relation to the real behaviour of the equations.
 If this happens, choose a shorter I<$dt>.
 
 Some of the most difficult problems involve so-called B<stiff>
-derivative functions. These arise when I<@dydt> introduces a wide
+derivative functions. These arise when I<&dydt> introduces a wide
 range of time-constants, from very short to long. In order to avoid
 instability, you will have to set I<$dt> to correspond to the shortest
 time-constant; but this makes it impossibly slow to follow the
@@ -624,27 +620,42 @@ smooth part of the problem.
 
 In the C<js/> subdirectory of the install directory there is I<RungeKutta.js>,
 which is an exact translation of this Perl code into JavaScript.
-SYNOPSIS:
+The function names and arguments are unchanged.
+Brief Synopsis:
 
  <SCRIPT type="text/javascript" src="RungeKutta.js"> </SCRIPT>
  <SCRIPT type="text/javascript">
  var dydt = function (t, y) {  // the derivative function
-   var dydt_array; ... ; return dydt_array;
+    var dydt_array = new Array(y.length); ... ; return dydt_array;
  }
  var y = new Array();
- y = initial_y(); var t = 0; var dt=0.4;  // the initial conditions
+
  // For automatic timestep adjustment ...
- var tmp;  // Array of return vaules
+ y = initial_y(); var t=0; var dt=0.4;  // the initial conditions
+ // Arrays of return vaules:
+ var tmp_end = new Array(3);  var tmp_mid = new Array(2);
  while (t < tfinal) {
-    tmp = rk4_auto(y, dydt, t, dt, 0.00001);
-    t=tmp[0]; dt=tmp[1]; y=tmp[2];
+    tmp_end = rk4_auto(y, dydt, t, dt, 0.00001);
+    tmp_mid = rk4_auto_midpoint();
+    t=tmp_mid[0]; y=tmp_mid[1];
     display(t, y);   // e.g. could use wz_jsgraphics.js or SVG
+    t=tmp_end[0]; dt=tmp_end[1]; y=tmp_end[2];
+    display(t, y);
+ }
+
+ // Or, for fixed timesteps ...
+ y = post_ww2_y(); var t=1945; var dt=1;  // start in 1945
+ var tmp = new Array(2);  // Array of return values
+ while (t <= 2100) {
+    tmp = rk4(y, dydt, t, dt);  // Merson's 4th-order method
+    t=tmp[0]; y=tmp[1];
+    display(t, y);
  }
  </SCRIPT>
 
 I<RungeKutta.js> uses several global variables
-which all begin with the letters C<_rk_> 
-so you should avoid introducing variables beginning with these characters.
+which all begin with the letters C<_rk_> so you should
+avoid introducing variables beginning with these characters.
 
 =head1 AUTHOR
 

@@ -8,7 +8,7 @@
 //     Documentation in http://search.cpan.org/~pjb/Math-RungeKutta      #
 //########################################################################
 
-// VERSION = '1.04';
+// VERSION = '1.05';
 
 function rk2 (ynref, dydtref, t, dt) {
 	var gamma = 0.75;  // Ralston's minimisation of error bounds
@@ -182,9 +182,7 @@ function rk4_ralston (ynref, dydtref, t, dt) {
 	var ny = ynref.length; var i;
 	var alpha1=0.4; var alpha2 = 0.4557372542;
 	var k0 = new Array(ny);
-	if (_rk_use_saved_k0) { k0 = _rk_saved_k0;
-	} else { k0 = dydtref(t, ynref);
-	}
+	k0 = dydtref(t, ynref);
 	for (i=0; i<ny; i++) { k0[i] *= dt; }
 
 	var k1 = new Array(ny);
@@ -218,9 +216,7 @@ function rk4_classical (ynref, dydtref, t, dt) {
 	// The Classical 4th-order Runge-Kutta Method, see Gear p35
 	var ny = ynref.length; var i;
 	var k0 = new Array(ny);
-	if (_rk_use_saved_k0) { k0 = _rk_saved_k0;
-	} else { k0 = dydtref(t, ynref);
-	}
+	k0 = dydtref(t, ynref);
 	for (i=0; i<ny; i++) { k0[i] *= dt; }
 
 	var eta1 = new Array(ny);

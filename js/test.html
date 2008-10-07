@@ -15,10 +15,10 @@ function ok (bool, str) {
 		document.write("<TR><TD>"+str+"</TD><TD><B>FAILED</B></TD></TR>\n");
 	}
 }
-var dydt = function (t, yX) {
+var dydt = function (t, y) {
 	var dydt_arr = new Array(2);
-	dydt_arr[0] = yX[1];
-	dydt_arr[1] = 0.0 - yX[0];
+	dydt_arr[0] = y[1];
+	dydt_arr[1] = 0.0 - y[0];
 	func_evals++;
 	return dydt_arr;
 }
@@ -49,7 +49,7 @@ for (var i = 1 ; i<=n ; i++) {
 var err0 = Math.abs(y[0]); var err1 = Math.abs(y[1]-1.0);
 ok((err0 < passmark0["rk2"] && err1 < passmark1["rk2"]), "rk2");
 
-i_test++; n = 16; dt = twopi/n; var y = new Array(2); y = [0,1]; t = 0;
+i_test++; y = [0,1]; t = 0;
 for (var i = 1 ; i<=n ; i++) {
 	tmp = rk4( y, dydt, t, dt );
 	t=tmp[0]; y=tmp[1];
@@ -57,7 +57,7 @@ for (var i = 1 ; i<=n ; i++) {
 var err0 = Math.abs(y[0]); var err1 = Math.abs(y[1]-1.0);
 ok((err0 < passmark0["rk4"] && err1 < passmark1["rk4"]), "rk4");
 
-i_test++; n = 16; dt = twopi/n; var y = new Array(2); y = [0,1]; t = 0;
+i_test++; y = [0,1]; t = 0;
 for (var i = 1 ; i<=n ; i++) {
 	tmp = rk4_classical( y, dydt, t, dt );
 	t=tmp[0]; y=tmp[1];
@@ -65,7 +65,7 @@ for (var i = 1 ; i<=n ; i++) {
 var err0 = Math.abs(y[0]); var err1 = Math.abs(y[1]-1.0);
 ok((err0 < passmark0["rk4_classical"] && err1 < passmark1["rk4_classical"]), "rk4_classical");
 
-i_test++; n = 16; dt = twopi/n; var y = new Array(2); y = [0,1]; t = 0;
+i_test++; y = [0,1]; t = 0;
 for (var i = 1 ; i<=n ; i++) {
 	tmp = rk4_ralston( y, dydt, t, dt );
 	t=tmp[0]; y=tmp[1];
