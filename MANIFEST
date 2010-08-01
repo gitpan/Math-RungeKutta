@@ -1,8 +1,6 @@
 README
 MANIFEST
 Changes
-Install
-Clui
 Makefile.PL
 test.pl
 RungeKutta.pm
@@ -11,3 +9,6 @@ examples/sine-cosine
 examples/three-body
 js/test.html
 js/RungeKutta.js
+lua/test.lua
+lua/RungeKutta.lua
+lua/three-body.lua

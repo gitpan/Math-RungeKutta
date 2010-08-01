@@ -9,7 +9,7 @@
 
 package Math::RungeKutta;
 no strict; no warnings;
-$VERSION = '1.05';
+$VERSION = '1.06';
 # gives a -w warning, but I'm afraid $VERSION .= ''; would confuse CPAN
 require Exporter;
 @ISA = qw(Exporter);
@@ -407,7 +407,7 @@ be helpful in solving systems of differential equations which arise
 within a I<Perl> context, such as economic, financial, demographic
 or ecological modelling, mechanical or process dynamics, etc.
 
-Version 1.05
+Version 1.06
 
 =head1 SUBROUTINES
 
@@ -656,6 +656,37 @@ Brief Synopsis:
 I<RungeKutta.js> uses several global variables
 which all begin with the letters C<_rk_> so you should
 avoid introducing variables beginning with these characters.
+
+=head1 LUA
+
+In the C<lua/> subdirectory of the install directory there is
+I<RungeKutta.lua>, which is an exact translation of this Perl code into Lua.
+The function names and arguments are unchanged.
+Brief Synopsis:
+
+ local RK = require 'RungeKutta'
+ function dydt(t, y) -- the derivative function
+   -- y is the array of the values, dydt the array of the derivatives
+   local dydt; ... ; return dydt
+ end
+ y = initial_y(); t=0; dt=0.4;  -- the initial conditions
+ -- For automatic timestep adjustment ...
+ while t < tfinal do
+    t, dt, y = RK.rk4_auto(y, dydt, t, dt, 0.00001)
+    display(t, y)
+ end
+
+ -- Or, for fixed timesteps ...
+ while t < tfinal do
+   t, y = RK.rk4(y, dydt, t, dt)  -- Merson's 4th-order method
+   display(t, y)
+ end
+ -- alternatively, though not so accurate ...
+ t, y = RK.rk2(y, dydt, t, dt)   -- Heun's 2nd-order method
+
+ -- or, also available ...
+ t, y = RK.rk4_classical(y, dydt, t, dt) -- Runge-Kutta 4th-order
+ t, y = RK.rk4_ralston(y, dydt, t, dt)   -- Ralston's 4th-order
 
 =head1 AUTHOR
 

@@ -27,10 +27,9 @@ This module should be helpful in solving systems of differential
 equations which arise within a Perl context, such as economic, financial,
 demographic or ecological modelling, mechanical or process dynamics, etc.
 
-To install:
-   perl Install
+Also included are call-compatible translations into JavaScript and Lua.
 
-that's all ! or you can still do it the old way ...
+To install:
    perl Makefile.PL
    make
    make test
