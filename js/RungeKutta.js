@@ -8,7 +8,7 @@
 //     Documentation in http://search.cpan.org/~pjb/Math-RungeKutta      #
 //########################################################################
 
-// VERSION = '1.06';
+// VERSION = '1.07';
 
 function rk2 (ynref, dydtref, t, dt) {
 	var gamma = 0.75;  // Ralston's minimisation of error bounds

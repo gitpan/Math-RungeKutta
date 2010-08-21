@@ -3,8 +3,8 @@
 
 This module offers algorithms for the numerical integration of
 simultaneous differential equations of the form  dY/dt = F(t,Y)
-where Y is an array of variables whose initial values Y(0) are
-known, and F is a function known from the dynamics of the problem.
+where Y is an array, or a hash, of variables whose initial values Y(0)
+are known; and F is a function known from the dynamics of the problem.
 
 Three main algorithms are offered.  rk2 is Heun's 2nd-order Runge-Kutta
 algorithm, which is relatively imprecise, but does have a large range
@@ -17,11 +17,12 @@ trying to choose a good step-size, and much CPU time by automatically
 increasing the step-size when the solution is changing only slowly.
 
 Perl is not the right language for high-end numerical integration like
-global weather simulation, colliding galaxies and so on, but as Gear says,
-"Many equations that are solved on digital computers can be classified as
-trivial by the fact that even with an inefficient method of solution,
-little computer time is used. Economics then dictates that the best method
-is the one that minimises the human time of preparation of the program."
+global weather simulation, colliding galaxies and so on, but as Gear
+says, "Many equations that are solved on digital computers can be
+classified as trivial by the fact that even with an inefficient method
+of solution, little computer time is used. Economics then dictates
+that the best method is the one that minimises the human time of
+preparation of the program."  The Lua version runs much faster.
 
 This module should be helpful in solving systems of differential
 equations which arise within a Perl context, such as economic, financial,

@@ -9,7 +9,7 @@
 
 package Math::RungeKutta;
 no strict; no warnings;
-$VERSION = '1.06';
+$VERSION = '1.07';
 # gives a -w warning, but I'm afraid $VERSION .= ''; would confuse CPAN
 require Exporter;
 @ISA = qw(Exporter);
@@ -27,9 +27,6 @@ sub new {
 }
 
 sub rk2 { my ($ynref, $dydtref, $t, $dt) = @_;
-	if (ref $ynref ne 'ARRAY') {
-		warn "Math::RungeKutta::rk2: 1st arg must be an arrayref\n"; return ();
-	}
 	if (ref $dydtref ne 'CODE') {
 		warn "Math::RungeKutta::rk2: 2nd arg must be a subroutine ref\n";
 		return ();
@@ -38,281 +35,455 @@ sub rk2 { my ($ynref, $dydtref, $t, $dt) = @_;
 	my $gamma = .75;  # Ralston's minimisation of error bounds
 	my $alpha = 0.5/$gamma; my $beta = 1.0-$gamma;
 	my $alphadt=$alpha*$dt; my $betadt=$beta*$dt; my $gammadt=$gamma*$dt;
-	my $ny = $#$ynref;
-	my @ynp1; $#ynp1 = $ny;
-	my @dydtn; $#dydtn = $ny;
-	my @ynpalpha; $#ynpalpha = $ny;  # Gear calls this q
-	my @dydtnpalpha; $#dydtnpalpha = $ny;
+	if (ref $ynref eq 'ARRAY') {
+		my $ny = $#$ynref;
+		my @ynp1; $#ynp1 = $ny;
+		my @dydtn; $#dydtn = $ny;
+		my @ynpalpha; $#ynpalpha = $ny;  # Gear calls this q
+		my @dydtnpalpha; $#dydtnpalpha = $ny;
+		@dydtn = &{$dydtref}($t, @$ynref);
+		my $i; for ($i=$[; $i<=$ny; $i++) {
+			$ynpalpha[$i] = ${$ynref}[$i] + $alphadt*$dydtn[$i];
+		}
+		@dydtnpalpha = &{$dydtref}($t+$alphadt, @ynpalpha);
+		for ($i=$[; $i<=$ny; $i++) {
+			$ynp1[$i]
+			 = ${$ynref}[$i]+$betadt*$dydtn[$i]+$gammadt*$dydtnpalpha[$i];
+		}
+		return ($t+$dt, @ynp1);
 
-	@dydtn = &{$dydtref}($t, @$ynref);
-	my $i; for ($i=$[; $i<=$ny; $i++) {
-		$ynpalpha[$i] = ${$ynref}[$i] + $alphadt*$dydtn[$i];
+	} elsif (ref $ynref eq 'HASH') {
+		my %ynp1;
+		my %ynpalpha;  # Gear calls this q
+		my %dydtn = &{$dydtref}($t, %$ynref);
+		foreach my $i (keys %$ynref) {
+			$ynpalpha{$i} = ${$ynref}{$i} + $alphadt*$dydtn{$i};
+		}
+		my %dydtnpalpha = &{$dydtref}($t+$alphadt, %ynpalpha);
+		foreach my $i (keys %$ynref) {
+			$ynp1{$i}
+			 = ${$ynref}{$i}+$betadt*$dydtn{$i}+$gammadt*$dydtnpalpha{$i};
+		}
+		return ($t+$dt, %ynp1);
+	} else {
+		warn "Math::RungeKutta::rk2: 1st arg must be an arrayref or hashref\n";
+		return ();
 	}
-	@dydtnpalpha = &{$dydtref}($t+$alphadt, @ynpalpha);
-	for ($i=$[; $i<=$ny; $i++) {
-		$ynp1[$i] = ${$ynref}[$i]+$betadt*$dydtn[$i]+$gammadt*$dydtnpalpha[$i];
-	}
-	return ($t+$dt, @ynp1);
 }
-my @saved_k0; my $use_saved_k0 = 0;
+my @saved_k0; my %saved_k0; my $use_saved_k0 = 0;
 sub rk4 { my ($ynref, $dydtref, $t, $dt) = @_;
 	# The Runge-Kutta-Merson 5-function-evaluation 4th-order method
 	# in the sine-cosine example, this seems to work as a 7th-order method !
-	if (ref $ynref ne 'ARRAY') {
-		warn "Math::RungeKutta::rk4: 1st arg must be an arrayref\n";
-		return ();
-	}
 	if (ref $dydtref ne 'CODE') {
 		warn "Math::RungeKutta::rk4: 2nd arg must be a subroutine ref\n";
 		return ();
 	}
-	my $ny = $#$ynref; my $i;
+	if (ref $ynref eq 'ARRAY') {
+		my $ny = $#$ynref; my $i;
+		# @eta0 = @#ynref;
+		my @k0; $#k0=$ny;
+		if ($use_saved_k0) { @k0 = @saved_k0;
+		} else { @k0 = &{$dydtref}($t, @$ynref);
+		}
+		for ($i=$[; $i<=$ny; $i++) { $k0[$i] *= $dt; }
+		my @eta1; $#eta1=$ny;
+		for ($i=$[; $i<=$ny; $i++) { $eta1[$i] = ${$ynref}[$i] + $k0[$i]/3.0; }
+		my @k1; $#k1=$ny;
+		@k1 = &{$dydtref}($t + $dt/3.0, @eta1);
+		for ($i=$[; $i<=$ny; $i++) { $k1[$i] *= $dt; }
+		my @eta2; $#eta2=$ny;
+		my @k2; $#k2=$ny;
+		for ($i=$[; $i<=$ny; $i++) {
+			$eta2[$i] = ${$ynref}[$i] + ($k0[$i]+$k1[$i])/6.0;
+		}
+		@k2 = &{$dydtref}($t + $dt/3.0, @eta2);
+		for ($i=$[; $i<=$ny; $i++) { $k2[$i] *= $dt; }
+		my @eta3; $#eta3=$ny;
+		for ($i=$[; $i<=$ny; $i++) {
+			$eta3[$i] = ${$ynref}[$i] + ($k0[$i]+3.0*$k2[$i])*0.125;
+		}
+		my @k3; $#k3=$ny;
+		@k3 = &{$dydtref}($t+0.5*$dt, @eta3);
+		for ($i=$[; $i<=$ny; $i++) { $k3[$i] *= $dt; }
+		my @eta4; $#eta4=$ny;
+		for ($i=$[; $i<=$ny; $i++) {
+			$eta4[$i] = ${$ynref}[$i] + ($k0[$i]-3.0*$k2[$i]+4.0*$k3[$i])*0.5;
+		}
+		my @k4; $#k4=$ny;
+		@k4 = &{$dydtref}($t+$dt, @eta4);
+		for ($i=$[; $i<=$ny; $i++) { $k4[$i] *= $dt; }
+		my @ynp1; $#ynp1 = $ny;
+		for ($i=$[; $i<=$ny; $i++) {
+			$ynp1[$i] = ${$ynref}[$i] + ($k0[$i]+4.0*$k3[$i]+$k4[$i])/6.0;
+		}
+		# Merson's method for error estimation, see Gear p85, only works
+		# if F is linear, ie F = Ay + bt, so that eta4 has no 4th-order
+		# errors.  So in general step-doubling is the only way to do it.
+		# Estimate error terms ...
+		# if ($epsilon) {
+		# 	my $errmax = 0; my $diff;
+		# 	for ($i=$[; $i<=$ny; $i++) {
+		# 		$diff = 0.2 * abs ($ynp1[$i] - $eta4[$i]);
+		# 		if ($errmax < $diff) { $errmax = $diff; }
+		# 	}
+		# 	# print "errmax = $errmax\n"; # not much related to the actual error
+		# }
+		return ($t+$dt, @ynp1);
 
-	# @eta0 = @#ynref;
-	my @k0; $#k0=$ny;
-	if ($use_saved_k0) { @k0 = @saved_k0;
-	} else { @k0 = &{$dydtref}($t, @$ynref);
-	}
-	for ($i=$[; $i<=$ny; $i++) { $k0[$i] *= $dt; }
-
-	my @eta1; $#eta1=$ny;
-	for ($i=$[; $i<=$ny; $i++) { $eta1[$i] = ${$ynref}[$i] + $k0[$i]/3.0; }
-	my @k1; $#k1=$ny;
-	@k1 = &{$dydtref}($t + $dt/3.0, @eta1);
-	for ($i=$[; $i<=$ny; $i++) { $k1[$i] *= $dt; }
-
-	my @eta2; $#eta2=$ny;
-	my @k2; $#k2=$ny;
-	for ($i=$[; $i<=$ny; $i++) {
-		$eta2[$i] = ${$ynref}[$i] + ($k0[$i]+$k1[$i])/6.0;
-	}
-	@k2 = &{$dydtref}($t + $dt/3.0, @eta2);
-	for ($i=$[; $i<=$ny; $i++) { $k2[$i] *= $dt; }
-
-	my @eta3; $#eta3=$ny;
-	for ($i=$[; $i<=$ny; $i++) {
-		$eta3[$i] = ${$ynref}[$i] + ($k0[$i]+3.0*$k2[$i])*0.125;
-	}
-	my @k3; $#k3=$ny;
-	@k3 = &{$dydtref}($t+0.5*$dt, @eta3);
-	for ($i=$[; $i<=$ny; $i++) { $k3[$i] *= $dt; }
-
-	my @eta4; $#eta4=$ny;
-	for ($i=$[; $i<=$ny; $i++) {
-		$eta4[$i] = ${$ynref}[$i] + ($k0[$i]-3.0*$k2[$i]+4.0*$k3[$i])*0.5;
-	}
-	my @k4; $#k4=$ny;
-	@k4 = &{$dydtref}($t+$dt, @eta4);
-	for ($i=$[; $i<=$ny; $i++) { $k4[$i] *= $dt; }
-
-	my @ynp1; $#ynp1 = $ny;
-	for ($i=$[; $i<=$ny; $i++) {
-		$ynp1[$i] = ${$ynref}[$i] + ($k0[$i]+4.0*$k3[$i]+$k4[$i])/6.0;
-	}
-
-	# Merson's method for error estimation, see Gear p85, only works
-	# if F is linear, ie F = Ay + bt, so that eta4 has no 4th-order
-	# errors.  So in general step-doubling is the only way to do it.
-	# Estimate error terms ...
-	# if ($epsilon) {
-	# 	my $errmax = 0; my $diff;
-	# 	for ($i=$[; $i<=$ny; $i++) {
-	# 		$diff = 0.2 * abs ($ynp1[$i] - $eta4[$i]);
-	# 		if ($errmax < $diff) { $errmax = $diff; }
-	# 	}
-	# 	# print "errmax = $errmax\n"; # not much related to the actual error
-	# }
-
-	return ($t+$dt, @ynp1);
-}
-my $t; my $halfdt; my @y2;
-sub rk4_auto { my $ynref=shift; my $dydtref=shift; $t=shift;
-	my ($dt, $arg4) = @_;
-	if (ref $ynref ne 'ARRAY') {
-		warn "Math::RungeKutta::rk4_auto: 1st arg must be an arrayref\n";
+	} elsif (ref $ynref eq 'HASH') {
+		my %k0;
+		if ($use_saved_k0) { %k0 = %saved_k0;
+		} else { %k0 = &{$dydtref}($t, %$ynref);
+		}
+		foreach my $i (keys(%$ynref)) { $k0{$i} *= $dt; }
+		my %eta1;
+		foreach my $i (keys(%$ynref)) { $eta1{$i} = ${$ynref}{$i}+$k0{$i}/3.0; }
+		my %k1 = &{$dydtref}($t + $dt/3.0, %eta1);
+		foreach my $i (keys(%$ynref)) { $k1{$i} *= $dt; }
+		my %eta2;
+		foreach my $i (keys(%$ynref)) {
+			$eta2{$i} = ${$ynref}{$i} + ($k0{$i}+$k1{$i})/6.0;
+		}
+		my %k2 = &{$dydtref}($t + $dt/3.0, %eta2);
+		foreach my $i (keys(%$ynref)) { $k2{$i} *= $dt; }
+		my %eta3;
+		foreach my $i (keys(%$ynref)) {
+			$eta3{$i} = ${$ynref}{$i} + ($k0{$i}+3.0*$k2{$i})*0.125;
+		}
+		my %k3 = &{$dydtref}($t+0.5*$dt, %eta3);
+		foreach my $i (keys(%$ynref)) { $k3{$i} *= $dt; }
+		my %eta4;
+		foreach my $i (keys(%$ynref)) {
+			$eta4{$i} = ${$ynref}{$i} + ($k0{$i}-3.0*$k2{$i}+4.0*$k3{$i})*0.5;
+		}
+		my %k4 = &{$dydtref}($t+$dt, %eta4);
+		foreach my $i (keys(%$ynref)) { $k4{$i} *= $dt; }
+		my %ynp1;
+		foreach my $i (keys(%$ynref)) {
+			$ynp1{$i} = ${$ynref}{$i} + ($k0{$i}+4.0*$k3{$i}+$k4{$i})/6.0;
+		}
+		return ($t+$dt, %ynp1);
+	} else {
+		warn "Math::RungeKutta::rk4: 1st arg must be an arrayref or hashref\n";
 		return ();
 	}
+}
+my $t; my $halfdt;
+my @y2; my %y2;  # need to be remembered for the midpoint
+sub rk4_auto { my $ynref=shift; my $dydtref=shift; $t=shift;
+	my ($dt, $arg4) = @_;
 	if (ref $dydtref ne 'CODE') {
 		warn "Math::RungeKutta::rk4_auto: 2nd arg must be a subroutine ref\n";
 		return ();
 	}
 	if ($dt == 0) { $dt = 0.1; }
-	my @errors; my $epsilon;
-	if (ref $arg4 eq 'ARRAY') {
-		@errors = @$arg4; undef $epsilon;
-	} else {
-		$epsilon = abs $arg4; undef @errors;
-		if (! $epsilon) { $epsilon = .0000001; }
-	}
-	my $ny = $#$ynref; my $i;
-
-	my @y1; $#y1 = ny;
-	$#y2 = ny;
-	my @y3; $#y3 = ny;
-	$#saved_k0 = ny; @saved_k0 = &{$dydtref}($t, @$ynref);
-	my $resizings = 0;
-	my $highest_low_error = 0.1E-99; my $highest_low_dt = 0.0;
-	my $lowest_high_error = 9.9E99;  my $lowest_high_dt = 9.9E99;
-	while (1) {
-		$halfdt = 0.5 * $dt; my $dummy;
-		$use_saved_k0 = 1;
-		($dummy, @y1) = &rk4($ynref, $dydtref, $t, $dt);
-		($dummy, @y2) = &rk4($ynref, $dydtref, $t, $halfdt);
-		$use_saved_k0 = 0;
-		($dummy, @y3) = &rk4(\@y2, $dydtref, $t+$halfdt, $halfdt);
-
-		my $relative_error;
-		if ($epsilon) {
-	 		my $errmax = 0; my $diff; my $ymax = 0;
-	 		for ($i=$[; $i<=$ny; $i++) {
-	 			$diff = abs ($y1[$i]-$y3[$i]);
-	 			if ($errmax < $diff) { $errmax = $diff; }
-	 			if ($ymax < abs ${$ynref}[$i]) { $ymax = abs ${$ynref}[$i]; }
-	 		}
-			$relative_error = $errmax/($epsilon*$ymax);
-		} elsif (@errors) {
-			$relative_error = 0.0; my $diff;
-	 		for ($i=$[; $i<=$ny; $i++) {
-	 			$diff = abs ($y1[$i]-$y3[$i]) / abs $errors[$i];
-	 			if ($relative_error < $diff) { $relative_error = $diff; }
-	 		}
+	if (ref $ynref eq 'ARRAY') {
+		my @errors; my $epsilon;
+		if (ref $arg4 eq 'ARRAY') {
+			@errors = @$arg4; undef $epsilon;
 		} else {
-			die "RungeKutta::rk4_auto: \$epsilon & \@errors both undefined\n";
+			$epsilon = abs $arg4; undef @errors;
+			if (! $epsilon) { $epsilon = .0000001; }
 		}
-		# Gear's "correction" assumes error is always in 5th-order terms :-(
-		# $y1[$i] = (16.0*$y3{$i] - $y1[$i]) / 15.0;
-		if ($relative_error < 0.60) {
-			if ($dt > $highest_low_dt) {
-				$highest_low_error = $relative_error; $highest_low_dt = $dt;
-			}
-		} elsif ($relative_error > 1.67) {
-			if ($dt < $lowest_high_dt) {
-				$lowest_high_error = $relative_error; $lowest_high_dt = $dt;
-			}
-		} else {
-			last;
-		}
-		if ($lowest_high_dt<9.8E99 && $highest_low_dt>1.0E-99) { # interpolate
-			my $denom = log ($lowest_high_error/$highest_low_error);
-			if ($highest_low_dt==0.0||$highest_low_error==0.0||$denom == 0.0) {
-				$dt = 0.5 * ($highest_low_dt+$lowest_high_dt);
-			} else {
-				$dt = $highest_low_dt * ( ($lowest_high_dt/$highest_low_dt)
-				 ** ((log (1.0/$highest_low_error)) / $denom) );
-			}
-		} else {
-			my $adjust = $relative_error**(-0.2); # hope error is 5th-order ...
-			if (abs $adjust > 2.0) {
-				$dt *= 2.0;  # prevent infinity if 4th-order is exact ...
-			} else {
-				$dt *= $adjust;
-			}
-		}
-		$resizings++;
-		if ($resizings>4 && $highest_low_dt>1.0E-99) {
-			# hope a small step forward gets us out of this mess ...
-			$dt = $highest_low_dt;  $halfdt = 0.5 * $dt;
+		my $ny = $#$ynref; my $i;
+		my @y1; $#y1 = ny;
+		$#y2 = ny; %y2 = ();
+		my @y3; $#y3 = ny;
+		$#saved_k0 = ny; @saved_k0 = &{$dydtref}($t, @$ynref);
+		my $resizings = 0;
+		my $highest_low_error = 0.1E-99; my $highest_low_dt = 0.0;
+		my $lowest_high_error = 9.9E99;  my $lowest_high_dt = 9.9E99;
+		while (1) {
+			$halfdt = 0.5 * $dt; my $dummy;
 			$use_saved_k0 = 1;
+			($dummy, @y1) = &rk4($ynref, $dydtref, $t, $dt);
 			($dummy, @y2) = &rk4($ynref, $dydtref, $t, $halfdt);
 			$use_saved_k0 = 0;
 			($dummy, @y3) = &rk4(\@y2, $dydtref, $t+$halfdt, $halfdt);
-			last;
+			my $relative_error;
+			if ($epsilon) {
+	 			my $errmax = 0; my $diff; my $ymax = 0;
+	 			for ($i=$[; $i<=$ny; $i++) {
+	 				$diff = abs ($y1[$i]-$y3[$i]);
+	 				if ($errmax < $diff) { $errmax = $diff; }
+	 				if ($ymax < abs ${$ynref}[$i]) {$ymax = abs ${$ynref}[$i];}
+	 			}
+				$relative_error = $errmax/($epsilon*$ymax);
+			} elsif (@errors) {
+				$relative_error = 0.0; my $diff;
+	 			for ($i=$[; $i<=$ny; $i++) {
+	 				$diff = abs ($y1[$i]-$y3[$i]) / abs $errors[$i];
+	 				if ($relative_error < $diff) { $relative_error = $diff; }
+	 			}
+			} else { die
+			 "RungeKutta::rk4_auto: \$epsilon & \@errors both undefined\n";
+			}
+			# Gear's correction assumes error is always in 5th-order terms :-(
+			# $y1[$i] = (16.0*$y3{$i] - $y1[$i]) / 15.0;
+			if ($relative_error < 0.60) {
+				if ($dt > $highest_low_dt) {
+					$highest_low_error = $relative_error;
+					$highest_low_dt = $dt;
+				}
+			} elsif ($relative_error > 1.67) {
+				if ($dt < $lowest_high_dt) {
+					$lowest_high_error = $relative_error;
+					$lowest_high_dt = $dt;
+				}
+			} else {
+				last;
+			}
+			if ($lowest_high_dt<9.8E99 && $highest_low_dt>1.0E-99) { # interp
+				my $denom = log ($lowest_high_error/$highest_low_error);
+				if ($highest_low_dt==0.0||$highest_low_error==0.0||$denom==0.0){
+					$dt = 0.5 * ($highest_low_dt+$lowest_high_dt);
+				} else {
+					$dt = $highest_low_dt * ( ($lowest_high_dt/$highest_low_dt)
+				 	** ((log (1.0/$highest_low_error)) / $denom) );
+				}
+			} else {
+				my $adjust = $relative_error**(-0.2); # hope error is 5th-order ...
+				if (abs $adjust > 2.0) {
+					$dt *= 2.0;  # prevent infinity if 4th-order is exact ...
+				} else {
+					$dt *= $adjust;
+				}
+			}
+			$resizings++;
+			if ($resizings>4 && $highest_low_dt>1.0E-99) {
+				# hope a small step forward gets us out of this mess ...
+				$dt = $highest_low_dt;  $halfdt = 0.5 * $dt;
+				$use_saved_k0 = 1;
+				($dummy, @y2) = &rk4($ynref, $dydtref, $t, $halfdt);
+				$use_saved_k0 = 0;
+				($dummy, @y3) = &rk4(\@y2, $dydtref, $t+$halfdt, $halfdt);
+				last;
+			}
 		}
-	}
+		return ($t+$dt, $dt, @y3);
 
-	return ($t+$dt, $dt, @y3);
+	} elsif (ref $ynref eq 'HASH') {
+		my %errors; my $epsilon;
+		if (ref $arg4 eq 'HASH') {
+			%errors = %$arg4; undef $epsilon;
+		} else {
+			$epsilon = abs $arg4; undef %errors;
+			if (! $epsilon) { $epsilon = .0000001; }
+		}
+		my $i; my %y1; @y2 = (); my %y3;
+		%saved_k0 = &{$dydtref}($t, %$ynref);
+		my $resizings = 0;
+		my $highest_low_error = 0.1E-99; my $highest_low_dt = 0.0;
+		my $lowest_high_error = 9.9E99;  my $lowest_high_dt = 9.9E99;
+		while (1) {
+			$halfdt = 0.5 * $dt; my $dummy;
+			$use_saved_k0 = 1;
+			($dummy, %y1) = &rk4($ynref, $dydtref, $t, $dt);
+			($dummy, %y2) = &rk4($ynref, $dydtref, $t, $halfdt);
+			$use_saved_k0 = 0;
+			($dummy, %y3) = &rk4(\%y2, $dydtref, $t+$halfdt, $halfdt);
+			my $relative_error;
+			if ($epsilon) {
+	 			my $errmax = 0; my $diff; my $ymax = 0;
+	 			foreach $i (keys(%$ynref)) {
+	 				$diff = abs ($y1{$i}-$y3{$i});
+	 				if ($errmax < $diff) { $errmax = $diff; }
+	 				if ($ymax < abs ${$ynref}{$i}) {$ymax = abs ${$ynref}{$i};}
+	 			}
+				$relative_error = $errmax/($epsilon*$ymax);
+			} elsif (%errors) {
+				$relative_error = 0.0; my $diff;
+	 			foreach $i (keys(%$ynref)) {
+	 				$diff = abs ($y1{$i}-$y3{$i}) / abs $errors{$i};
+	 				if ($relative_error < $diff) { $relative_error = $diff; }
+	 			}
+			} else { die
+			 "RungeKutta::rk4_auto: \$epsilon & \%errors both undefined\n";
+			}
+			# Gear's correction assumes error is always in 5th-order terms :-(
+			# $y1[$i] = (16.0*$y3{$i] - $y1[$i]) / 15.0;
+			if ($relative_error < 0.60) {
+				if ($dt > $highest_low_dt) {
+					$highest_low_error = $relative_error;
+					$highest_low_dt = $dt;
+				}
+			} elsif ($relative_error > 1.67) {
+				if ($dt < $lowest_high_dt) {
+					$lowest_high_error = $relative_error;
+					$lowest_high_dt = $dt;
+				}
+			} else {
+				last;
+			}
+			if ($lowest_high_dt<9.8E99 && $highest_low_dt>1.0E-99) { # interp
+				my $denom = log ($lowest_high_error/$highest_low_error);
+				if ($highest_low_dt==0.0||$highest_low_error==0.0||$denom==0.0){
+					$dt = 0.5 * ($highest_low_dt+$lowest_high_dt);
+				} else {
+					$dt = $highest_low_dt * ( ($lowest_high_dt/$highest_low_dt)
+				 	** ((log (1.0/$highest_low_error)) / $denom) );
+				}
+			} else {
+				my $adjust = $relative_error**(-0.2); # hope error is 5th-order ...
+				if (abs $adjust > 2.0) {
+					$dt *= 2.0;  # prevent infinity if 4th-order is exact ...
+				} else {
+					$dt *= $adjust;
+				}
+			}
+			$resizings++;
+			if ($resizings>4 && $highest_low_dt>1.0E-99) {
+				# hope a small step forward gets us out of this mess ...
+				$dt = $highest_low_dt;  $halfdt = 0.5 * $dt;
+				$use_saved_k0 = 1;
+				($dummy, %y2) = &rk4($ynref, $dydtref, $t, $halfdt);
+				$use_saved_k0 = 0;
+				($dummy, %y3) = &rk4(\%y2, $dydtref, $t+$halfdt, $halfdt);
+				last;
+			}
+		}
+		return ($t+$dt, $dt, %y3);
+
+	} else { die
+		"Math::RungeKutta::rk4_auto: 1st arg must be arrayref or hashref\n";
+		# return ();
+	}
 }
 sub rk4_auto_midpoint {
-	return ($t+$halfdt, @y2);
+	if (@y2) { return ($t+$halfdt, @y2); } else { return ($t+$halfdt, %y2); }
 }
 
 # ---------------------- EXPORT_OK routines ----------------------
 
 sub rk4_ralston { my ($ynref, $dydtref, $t, $dt) = @_;
-	if (ref $ynref ne 'ARRAY') {
-		warn "RungeKutta::rk4_ralston: 1st arg must be arrayref\n"; return ();
-	}
 	if (ref $dydtref ne 'CODE') {
 		warn "RungeKutta::rk4_ralston: 2nd arg must be a subroutine ref\n";
 		return ();
 	}
-	my $ny = $#$ynref; my $i;
-
 	# Ralston's minimisation of error bounds, see Gear p36
-	my $alpha1=0.4; my $alpha2 = 0.4557372542; # = .875 - .1875*(sqrt 5);
+	if (ref $ynref eq 'ARRAY') {
+		my $ny = $#$ynref; my $i;
+		my $alpha1=0.4; my $alpha2 = 0.4557372542; # = .875 - .1875*(sqrt 5);
+		my @k0; $#k0=$ny;
+		@k0 = &{$dydtref}($t, @$ynref);
+		for ($i=$[; $i<=$ny; $i++) { $k0[$i] *= $dt; }
+		my @k1; $#k1=$ny;
+		for ($i=$[; $i<=$ny; $i++) { $k1[$i] = ${$ynref}[$i] + 0.4*$k0[$i]; }
+		@k1 = &{$dydtref}($t + $alpha1*$dt, @k1);
+		for ($i=$[; $i<=$ny; $i++) { $k1[$i] *= $dt; }
+		my @k2; $#k2=$ny;
+		for ($i=$[; $i<=$ny; $i++) {
+			$k2[$i] = ${$ynref}[$i] + 0.2969776*$k0[$i] + 0.15875966*$k1[$i];
+		}
+		@k2 = &{$dydtref}($t + $alpha2*$dt, @k2);
+		for ($i=$[; $i<=$ny; $i++) { $k2[$i] *= $dt; }
+		my @k3; $#k3=$ny;
+		for ($i=$[; $i<=$ny; $i++) {
+			$k3[$i] = ${$ynref}[$i] + 0.21810038*$k0[$i] - 3.0509647*$k1[$i]
+		 	+ 3.83286432*$k2[$i];
+		}
+		@k3 = &{$dydtref}($t+$dt, @k3);
+		for ($i=$[; $i<=$ny; $i++) { $k3[$i] *= $dt; }
+		my @ynp1; $#ynp1 = $ny;
+		for ($i=$[; $i<=$ny; $i++) {
+			$ynp1[$i] = ${$ynref}[$i] + 0.17476028*$k0[$i]
+		 	- 0.55148053*$k1[$i] + 1.20553547*$k2[$i] + 0.17118478*$k3[$i];
+		}
+		return ($t+$dt, @ynp1);
 
-	my @k0; $#k0=$ny;
-	@k0 = &{$dydtref}($t, @$ynref);
-	for ($i=$[; $i<=$ny; $i++) { $k0[$i] *= $dt; }
+	} elsif (ref $ynref eq 'HASH') {
+		my $i;
+		my $alpha1=0.4; my $alpha2 = 0.4557372542; # = .875 - .1875*(sqrt 5);
+		my %k0 = &{$dydtref}($t, %$ynref);
+		foreach $i (keys(%$ynref)) { $k0{$i} *= $dt; }
+		my %k1;
+		foreach $i (keys(%$ynref)) { $k1{$i} = ${$ynref}{$i} + 0.4*$k0{$i}; }
+		%k1 = &{$dydtref}($t + $alpha1*$dt, %k1);
+		foreach $i (keys(%$ynref)) { $k1{$i} *= $dt; }
+		my %k2;
+		foreach $i (keys(%$ynref)) {
+			$k2{$i} = ${$ynref}{$i} + 0.2969776*$k0{$i} + 0.15875966*$k1{$i};
+		}
+		%k2 = &{$dydtref}($t + $alpha2*$dt, %k2);
+		foreach $i (keys(%$ynref)) { $k2{$i} *= $dt; }
+		my %k3;
+		foreach $i (keys(%$ynref)) {
+			$k3{$i} = ${$ynref}{$i} + 0.21810038*$k0{$i} - 3.0509647*$k1{$i}
+		 	+ 3.83286432*$k2{$i};
+		}
+		%k3 = &{$dydtref}($t+$dt, %k3);
+		foreach $i (keys(%$ynref)) { $k3{$i} *= $dt; }
+		my %ynp1;
+		foreach $i (keys(%$ynref)) {
+			$ynp1{$i} = ${$ynref}{$i} + 0.17476028*$k0{$i}
+		 	- 0.55148053*$k1{$i} + 1.20553547*$k2{$i} + 0.17118478*$k3{$i};
+		}
+		return ($t+$dt, %ynp1);
 
-	my @k1; $#k1=$ny;
-	for ($i=$[; $i<=$ny; $i++) { $k1[$i] = ${$ynref}[$i] + 0.4*$k0[$i]; }
-	@k1 = &{$dydtref}($t + $alpha1*$dt, @k1);
-	for ($i=$[; $i<=$ny; $i++) { $k1[$i] *= $dt; }
-
-	my @k2; $#k2=$ny;
-	for ($i=$[; $i<=$ny; $i++) {
-		$k2[$i] = ${$ynref}[$i] + 0.2969776*$k0[$i] + 0.15875966*$k1[$i];
-	}
-	@k2 = &{$dydtref}($t + $alpha2*$dt, @k2);
-	for ($i=$[; $i<=$ny; $i++) { $k2[$i] *= $dt; }
-
-	my @k3; $#k3=$ny;
-	for ($i=$[; $i<=$ny; $i++) {
-		$k3[$i] = ${$ynref}[$i] + 0.21810038*$k0[$i] - 3.0509647*$k1[$i]
-		 + 3.83286432*$k2[$i];
-	}
-	@k3 = &{$dydtref}($t+$dt, @k3);
-	for ($i=$[; $i<=$ny; $i++) { $k3[$i] *= $dt; }
-
-	my @ynp1; $#ynp1 = $ny;
-	for ($i=$[; $i<=$ny; $i++) {
-		$ynp1[$i] = ${$ynref}[$i] + 0.17476028*$k0[$i]
-		 - 0.55148053*$k1[$i] + 1.20553547*$k2[$i] + 0.17118478*$k3[$i];
-	}
-	return ($t+$dt, @ynp1);
-}
-sub rk4_classical { my ($ynref, $dydtref, $t, $dt) = @_;
-	if (ref $ynref ne 'ARRAY') {
-		warn "Math::RungeKutta::rk4_classical: 1st arg must be arrayref\n";
+	} else {
+		warn "Math::RungeKutta::rk4_ralston: 1st arg must be arrayref or hashref\n";
 		return ();
 	}
+}
+sub rk4_classical { my ($ynref, $dydtref, $t, $dt) = @_;
 	if (ref $dydtref ne 'CODE') {
 		warn "RungeKutta::rk4_classical: 2nd arg must be subroutine ref\n";
 		return ();
 	}
-	my $ny = $#$ynref; my $i;
-
 	# The Classical 4th-order Runge-Kutta Method, see Gear p35
+	if (ref $ynref eq 'ARRAY') {
+		my $ny = $#$ynref; my $i;
+		my @k0; $#k0=$ny;
+		@k0 = &{$dydtref}($t, @$ynref);
+		for ($i=$[; $i<=$ny; $i++) { $k0[$i] *= $dt; }
+		my @eta1; $#eta1=$ny;
+		for ($i=$[; $i<=$ny; $i++) { $eta1[$i] = ${$ynref}[$i] + 0.5*$k0[$i]; }
+		my @k1; $#k1=$ny;
+		@k1 = &{$dydtref}($t+0.5*$dt, @eta1);
+		for ($i=$[; $i<=$ny; $i++) { $k1[$i] *= $dt; }
+		my @eta2; $#eta2=$ny;
+		for ($i=$[; $i<=$ny; $i++) { $eta2[$i] = ${$ynref}[$i] + 0.5*$k1[$i]; }
+		my @k2; $#k2=$ny;
+		@k2 = &{$dydtref}($t+0.5*$dt, @eta2);
+		for ($i=$[; $i<=$ny; $i++) { $k2[$i] *= $dt; }
+		my @eta3; $#eta3=$ny;
+		for ($i=$[; $i<=$ny; $i++) { $eta3[$i] = ${$ynref}[$i] + $k2[$i]; }
+		my @k3; $#k3=$ny;
+		@k3 = &{$dydtref}($t+$dt, @eta3);
+		for ($i=$[; $i<=$ny; $i++) { $k3[$i] *= $dt; }
+		my @ynp1; $#ynp1 = $ny;
+		for ($i=$[; $i<=$ny; $i++) {
+			$ynp1[$i] = ${$ynref}[$i] +
+		 	($k0[$i] + 2.0*$k1[$i] + 2.0*$k2[$i] + $k3[$i]) / 6.0;
+		}
+		return ($t+$dt, @ynp1);
 
-	my @k0; $#k0=$ny;
-	@k0 = &{$dydtref}($t, @$ynref);
-	for ($i=$[; $i<=$ny; $i++) { $k0[$i] *= $dt; }
+	} elsif (ref $ynref eq 'HASH') {
+		my %k0 = &{$dydtref}($t, %$ynref);
+		foreach my $i (keys(%$ynref)) { $k0{$i} *= $dt; }
+		my %eta1;
+		foreach $i (keys(%$ynref)) { $eta1{$i} = ${$ynref}{$i} + 0.5*$k0{$i}; }
+		my %k1 = &{$dydtref}($t+0.5*$dt, %eta1);
+		foreach $i (keys(%$ynref)) { $k1{$i} *= $dt; }
+		my %eta2;
+		foreach $i (keys(%$ynref)) { $eta2{$i} = ${$ynref}{$i} + 0.5*$k1{$i}; }
+		my %k2 = &{$dydtref}($t+0.5*$dt, %eta2);
+		foreach $i (keys(%$ynref)) { $k2{$i} *= $dt; }
+		my %eta3;
+		foreach $i (keys(%$ynref)) { $eta3{$i} = ${$ynref}{$i} + $k2{$i}; }
+		my %k3 = &{$dydtref}($t+$dt, %eta3);
+		foreach $i (keys(%$ynref)) { $k3{$i} *= $dt; }
+		my %ynp1;
+		foreach $i (keys(%$ynref)) {
+			$ynp1{$i} = ${$ynref}{$i} +
+		 	($k0{$i} + 2.0*$k1{$i} + 2.0*$k2{$i} + $k3{$i}) / 6.0;
+		}
+		return ($t+$dt, %ynp1);
 
-	my @eta1; $#eta1=$ny;
-	for ($i=$[; $i<=$ny; $i++) { $eta1[$i] = ${$ynref}[$i] + 0.5*$k0[$i]; }
-	my @k1; $#k1=$ny;
-	@k1 = &{$dydtref}($t+0.5*$dt, @eta1);
-	for ($i=$[; $i<=$ny; $i++) { $k1[$i] *= $dt; }
-
-	my @eta2; $#eta2=$ny;
-	for ($i=$[; $i<=$ny; $i++) { $eta2[$i] = ${$ynref}[$i] + 0.5*$k1[$i]; }
-	my @k2; $#k2=$ny;
-	@k2 = &{$dydtref}($t+0.5*$dt, @eta2);
-	for ($i=$[; $i<=$ny; $i++) { $k2[$i] *= $dt; }
-
-	my @eta3; $#eta3=$ny;
-	for ($i=$[; $i<=$ny; $i++) { $eta3[$i] = ${$ynref}[$i] + $k2[$i]; }
-	my @k3; $#k3=$ny;
-	@k3 = &{$dydtref}($t+$dt, @eta3);
-	for ($i=$[; $i<=$ny; $i++) { $k3[$i] *= $dt; }
-
-	my @ynp1; $#ynp1 = $ny;
-	for ($i=$[; $i<=$ny; $i++) {
-		$ynp1[$i] = ${$ynref}[$i] +
-		 ($k0[$i] + 2.0*$k1[$i] + 2.0*$k2[$i] + $k3[$i]) / 6.0;
+	} else {
+		warn "Math::RungeKutta::rk4_classical: 1st arg must be arrayref or hashref\n";
+		return ();
 	}
-	return ($t+$dt, @ynp1);
 }
 
 # --------------------- infrastructure ----------------------
@@ -344,6 +515,8 @@ Math::RungeKutta.pm - Integrating Systems of Differential Equations
 =head1 SYNOPSIS
 
  use Math::RungeKutta;
+
+ # When working on data in an array ...
  sub dydt { my ($t, @y) = @_;   # the derivative function
    my @dydt; ... ; return @dydt;
  }
@@ -353,7 +526,6 @@ Math::RungeKutta.pm - Integrating Systems of Differential Equations
     ($t, $dt, @y) = &rk4_auto(\@y, \&dydt, $t, $dt, 0.00001);
     &display($t, @y);
  }
-
  # Or, for fixed timesteps ...
  while ($t < $tfinal) {
    ($t, @y) = &rk4(\@y, \&dydt, $t, $dt); # Merson's 4th-order method
@@ -362,10 +534,29 @@ Math::RungeKutta.pm - Integrating Systems of Differential Equations
  # alternatively, though not so accurate ...
  ($t, @y) = &rk2(\@y, \&dydt, $t, $dt);   # Heun's 2nd-order method
 
+ # Or, working on data in a hash...
+ sub dydt { my ($t, %y) = @_;   # the derivative function
+   my %dydt; ... ; return %dydt;
+ }
+ %y = %initial_y; $t=0; $dt=0.4;  # the initial conditions
+ # For automatic timestep adjustment on hashes ...
+ while ($t < $tfinal) {
+    ($t, $dt, %y) = &rk4_auto(\%y, \%dydt, $t, $dt, 0.00001);
+    &display($t, %y);
+ }
+ # Or, for fixed timesteps on hashes ...
+ while ($t < $tfinal) {
+   ($t, %y) = &rk4(\%y, \%dydt, $t, $dt); # Merson's 4th-order method
+   &display($t, %y);
+ }
+ # alternatively, though not so accurate ...
+ ($t, %y) = &rk2(\%y, \%dydt, $t, $dt);   # Heun's 2nd-order method
+
  # or, also available but not exported by default ...
  import qw(:ALL);
  ($t, @y) = &rk4_classical(\@y, \&dydt, $t, $dt); # Runge-Kutta 4th-order
  ($t, @y) = &rk4_ralston(\@y, \&dydt, $t, $dt);   # Ralston's 4th-order
+ # or similarly for data in hashes.
 
 =head1 DESCRIPTION
 
@@ -407,7 +598,7 @@ be helpful in solving systems of differential equations which arise
 within a I<Perl> context, such as economic, financial, demographic
 or ecological modelling, mechanical or process dynamics, etc.
 
-Version 1.06
+Version 1.07
 
 =head1 SUBROUTINES
 
@@ -415,8 +606,11 @@ Version 1.06
 
 =item I<rk2>( \@y, \&dydt, $t, $dt )
 
+=item I<rk2>( \%y, \&dydt, $t, $dt )
+
 where the arguments are:
  I<\@y> a reference to the array of initial values of variables,
+ I<\%y> a reference to the hash of initial values of variables,
  I<\&dydt> a reference to the function calculating the derivatives,
  I<$t> the initial time,
  I<$dt> the timestep.
@@ -428,9 +622,12 @@ methods are also known under this name. Two function evaluations are needed
 per timestep, and the remaining error is in the 3rd and higher order terms.
 
 I<rk2> returns ($t, @y) where $t and @y are now the new values
-at the completion of the timestep.
+at the completion of the timestep,
+or it returns ($t, %y) if called with the data in a hashref.
 
 =item I<rk4>( \@y, \&dydt, $t, $dt )
+
+=item I<rk4>( \%y, \&dydt, $t, $dt )
 
 The arguments are the same as in I<rk2>.
 
@@ -446,23 +643,30 @@ at the completion of the timestep.
 
 =item I<rk4_auto>( \@y, \&dydt, $t, $dt, \@errors )
 
-In the first form the arguments are:
- I<\@y> a reference to the array of initial values of variables,
+=item I<rk4_auto>( \%y, \&dydt, $t, $dt, $epsilon )
+
+=item I<rk4_auto>( \%y, \&dydt, $t, $dt, \%errors )
+
+In the I>epsilon> form the arguments are:
+ I<\@y> a reference to the array of initial values of variables or
+ I<\%y> a reference to the hash of initial values of variables,
  I<\&dydt> a reference to the function calculating the derivatives,
  I<$t> the initial time,
  I<$dt> the initial timestep,
  I<$epsilon> the errors per step will be about $epsilon*$ymax
 
-In the second form the last argument is:
- I<\@errors> a reference to an array of maximum permissible errors.
+In the I<errors> form the last argument is:
+ I<\@errors> a reference to an array of maximum permissible errors,
+ or I<\%errors> a reference to a hash, accordingly.
 
 The first I<$epsilon> calling form is useful when all the elements of
 I<@y> are in the same units and have the same typical size (e.g. y[10]
 is population aged 10-11 years, y[25] is population aged 25-26 years).
 The default value of the 4th argument is I<$epsilon = 0.00001>.
 
-The second I<\@errors> form is useful otherwise
-(e.g. y[1] is gross national product, y[2] is interest rate).
+The second I<errors> form is useful otherwise
+(e.g. $y[1] is gross national product, $y[2] is interest rate,
+or $y{'gross national product'} and $y{'interest rate'} accordingly.
 In this calling form, the permissible errors are specified in
 absolute size for each variable; they won't get scaled at all.
 
@@ -479,7 +683,8 @@ I<rk4_auto> needs 14 function evaluations per double-timestep, and
 it has to re-do 13 of those every time it adjusts the timestep.
 
 I<rk4_auto> returns ($t, $dt, @y) where $t, $dt and @y
-are now the new values at the completion of the timestep.
+are now the new values at the completion of the timestep,
+or ($t, $dt, %y) accordingly.
 
 =item I<rk4_auto_midpoint>()
 
@@ -503,7 +708,8 @@ of their chronological order. Sorry about this.  For example,
  }
 
 I<rk4_auto_midpoint> returns ($t, @y) where $t and @y were the
-values at the midpoint of the previous call to I<rk4_auto>.
+values at the midpoint of the previous call to I<rk4_auto>;
+or ($t, %y) accordingly.
 
 =back
 
@@ -513,14 +719,17 @@ values at the midpoint of the previous call to I<rk4_auto>.
 
 =item I<dydt>( $t, @y );
 
-This subroutine will be passed by reference as the second argument to
+=item I<dydt>( $t, %y );
+
+You will pass this subroutine by reference as the second argument to
 I<rk2>, I<rk4> and I<rk4_auto>. The name doesn't matter of course.
 It must expect the following arguments:
  I<$t> the time (in case the equations are time-dependent),
- I<@y> the array of values of variables.
+ I<@y> the array of values of variables or
+ I<%y> the hash of values of variables.
 
-It must return an array of the derivatives
-of the variables with respect to time.
+It must return an array (or hash, accordingly)
+of the derivatives of the variables with respect to time.
 
 =back
 
@@ -535,6 +744,8 @@ exported under the I<ALL> tag, so if you need them you should:
 
 =item I<rk4_classical>( \@y, \&dydt, $t, $dt )
 
+=item I<rk4_classical>( \%y, \&dydt, $t, $dt )
+
 The arguments and the return values are the same as in I<rk2> and I<rk4>.
 
 The algorithm used is the classic, elegant, 4th-order Runge-Kutta
@@ -546,6 +757,8 @@ method, using four function evaluations per timestep:
  y(n+1) = y(n) + (k0 + 2*k1 + 2*k2 + k3) / 6
 
 =item I<rk4_ralston>( \@y, \&dydt, $t, $dt )
+
+=item I<rk4_ralston>( \%y, \&dydt, $t, $dt )
 
 The arguments and the return values are the same as in I<rk2> and I<rk4>.
 
@@ -666,8 +879,8 @@ Brief Synopsis:
 
  local RK = require 'RungeKutta'
  function dydt(t, y) -- the derivative function
-   -- y is the array of the values, dydt the array of the derivatives
-   local dydt; ... ; return dydt
+   -- y is the table of the values, dydt the table of the derivatives
+   local dydt = {}; ... ; return dydt
  end
  y = initial_y(); t=0; dt=0.4;  -- the initial conditions
  -- For automatic timestep adjustment ...

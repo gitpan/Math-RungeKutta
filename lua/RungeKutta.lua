@@ -7,8 +7,8 @@
 --          modify it under the same terms as Lua5 itself.           --
 -- ----------------------------------------------------------------- --
 local M = {} -- public interface
-M.Version = '1.06'
-M.VersionDate = '30jul2010'
+M.Version = '1.07'
+M.VersionDate = '20aug2010'
 
 -- Example usage:
 -- local RK = require 'RungeKutta'
@@ -62,13 +62,13 @@ function M.rk2(yn, dydt, t, dt)
 	local dydtn = {}
 	local ynpalpha = {}  -- Gear calls this q
 	local dydtnpalpha = {}
-
 	dydtn = dydt(t, yn);
-	for i=1, ny do
+	-- for i=1, ny do
+	for i in pairs(yn) do
 		ynpalpha[i] = yn[i] + alphadt*dydtn[i];
 	end
 	dydtnpalpha = dydt(t+alphadt, ynpalpha);
-	for i=1, ny do
+	for i in pairs(yn) do
 		ynp1[i] = yn[i]+betadt*dydtn[i]+gammadt*dydtnpalpha[i];
 	end
 	return t+dt, ynp1
@@ -112,37 +112,37 @@ function M.rk4(yn, dydt, t, dt)
 -- without the copy() it gets trashed on the 2nd call to this function :-(
 	else  k0 = dydt(t, yn)
 	end
-	for i=1, ny do k0[i] = k0[i] * dt end
+	for i in pairs(yn) do k0[i] = k0[i] * dt end
 
 	local eta1 = {}
-	for i=1, ny do eta1[i] = yn[i] + k0[i]/3.0 end
+	for i in pairs(yn) do eta1[i] = yn[i] + k0[i]/3.0 end
 	local k1 = dydt(t + dt/3.0, eta1)
-	for i=1, ny do k1[i] = k1[i] * dt end
+	for i in pairs(yn) do k1[i] = k1[i] * dt end
 
 	local eta2 = {}
 	local k2 = {}
-	for i=1, ny do
+	for i in pairs(yn) do
 		eta2[i] = yn[i] + (k0[i]+k1[i])/6.0
 	end
 	k2 = dydt(t + dt/3.0, eta2)
-	for i=1, ny do k2[i] = k2[i] * dt end
+	for i in pairs(yn) do k2[i] = k2[i] * dt end
 
 	local eta3 = {}
-	for i=1, ny do
+	for i in pairs(yn) do
 		eta3[i] = yn[i] + (k0[i]+3.0*k2[i])*0.125
 	end
 	local k3 = dydt(t+0.5*dt, eta3)
-	for i=1, ny do k3[i] = k3[i] * dt end
+	for i in pairs(yn) do k3[i] = k3[i] * dt end
 
 	local eta4 = {}
-	for i=1, ny do
+	for i in pairs(yn) do
 		eta4[i] = yn[i] + (k0[i]-3.0*k2[i]+4.0*k3[i])*0.5
 	end
 	local k4 = dydt(t+dt, eta4)
-	for i=1, ny do k4[i] = k4[i] * dt end
+	for i in pairs(yn) do k4[i] = k4[i] * dt end
 
 	local ynp1 = {}
-	for i=1, ny do
+	for i in pairs(yn) do
 		ynp1[i] = yn[i] + (k0[i]+4.0*k3[i]+k4[i])/6.0;
 	end
 
@@ -199,7 +199,7 @@ function M.rk4_auto(yn, dydt, t, dt, arg4)
 		local relative_error
 		if epsilon then
 	 		local errmax = 0; local diff; local ymax = 0
-	 		for i=1, ny do
+	 		for i in pairs(yn) do
 	 			diff = math.abs(y1[i] - y3[i])
 	 			if errmax < diff then errmax = diff end
 	 			if ymax < math.abs(yn[i]) then ymax = math.abs(yn[i]) end
@@ -207,7 +207,7 @@ function M.rk4_auto(yn, dydt, t, dt, arg4)
 			relative_error = errmax / (epsilon*ymax)
 		elseif errors then
 			relative_error = 0.0; local diff;
-	 		for i=1, ny do
+	 		for i in pairs(yn) do
 	 			diff = math.abs(y1[i] - y3[i]) / math.abs(errors[i])
 	 			if relative_error < diff then relative_error = diff end
 	 		end
@@ -278,29 +278,29 @@ function M.rk4_ralston (yn, dydt, t, dt)
 	local alpha1=0.4; local alpha2 = 0.4557372542  -- = .875 - .1875*(sqrt 5);
 
 	local k0 = dydt(t, yn)
-	for i=1, ny do k0[i] = dt * k0[i] end
+	for i in pairs(yn) do k0[i] = dt * k0[i] end
 
 	local k1 = {}
-	for i=1, ny do k1[i] = yn[i] + 0.4*k0[i] end
+	for i in pairs(yn) do k1[i] = yn[i] + 0.4*k0[i] end
 	k1 = dydt(t + alpha1*dt, k1)
-	for i=1, ny do k1[i] = dt * k1[i] end
+	for i in pairs(yn) do k1[i] = dt * k1[i] end
 
 	local k2 = {}
-	for i=1, ny do
+	for i in pairs(yn) do
 		k2[i] = yn[i] + 0.2969776*k0[i] + 0.15875966*k1[i]
 	end
 	k2 = dydt(t + alpha2*dt, k2)
-	for i=1, ny do k2[i] = dt * k2[i] end
+	for i in pairs(yn) do k2[i] = dt * k2[i] end
 
 	local k3 = {}
-	for i=1, ny do
+	for i in pairs(yn) do
 		k3[i] = yn[i] + 0.21810038*k0[i] - 3.0509647*k1[i] + 3.83286432*k2[i]
 	end
 	k3 = dydt(t+dt, k3)
-	for i=1, ny do k3[i] = dt * k3[i] end
+	for i in pairs(yn) do k3[i] = dt * k3[i] end
 
 	local ynp1 = {}
-	for i=1, ny do
+	for i in pairs(yn) do
 		ynp1[i] = yn[i] + 0.17476028*k0[i]
 		 - 0.55148053*k1[i] + 1.20553547*k2[i] + 0.17118478*k3[i]
 	end
@@ -320,25 +320,25 @@ function M.rk4_classical(yn, dydt, t, dt)
 	-- The Classical 4th-order Runge-Kutta Method, see Gear p35
 
 	local k0 = dydt(t, yn)
-	for i=1, ny do k0[i] = dt * k0[i] end
+	for i in pairs(yn) do k0[i] = dt * k0[i] end
 
 	local eta1 = {}
-	for i=1, ny do eta1[i] = yn[i] + 0.5*k0[i] end
+	for i in pairs(yn) do eta1[i] = yn[i] + 0.5*k0[i] end
 	local k1 = dydt(t+0.5*dt, eta1)
-	for i=1, ny do k1[i] = dt * k1[i] end
+	for i in pairs(yn) do k1[i] = dt * k1[i] end
 
 	local eta2 = {}
-	for i=1, ny do eta2[i] = yn[i] + 0.5*k1[i] end
+	for i in pairs(yn) do eta2[i] = yn[i] + 0.5*k1[i] end
 	local k2 = dydt(t+0.5*dt, eta2)
-	for i=1, ny do k2[i] = dt * k2[i] end
+	for i in pairs(yn) do k2[i] = dt * k2[i] end
 
 	local eta3 = {}
-	for i=1, ny do eta3[i] = yn[i] + k2[i] end
+	for i in pairs(yn) do eta3[i] = yn[i] + k2[i] end
 	local k3 = dydt(t+dt, eta3)
-	for i=1, ny do k3[i] = dt * k3[i] end
+	for i in pairs(yn) do k3[i] = dt * k3[i] end
 
 	local ynp1 = {}
-	for i=1, ny do
+	for i in pairs(yn) do
 		ynp1[i] = yn[i] + (k0[i] + 2.0*k1[i] + 2.0*k2[i] + k3[i]) / 6.0;
 	end
 	return t+dt, ynp1
@@ -359,8 +359,10 @@ RungeKutta.lua - Integrating Systems of Differential Equations
 
  local RK = require 'RungeKutta'
  function dydt(t, y) -- the derivative function
-   -- y is the array of the values, dydt the array of the derivatives
-   local dydt; ... ; return dydt 
+   -- y is the table of the values, dydt the table of the derivatives
+   -- the table can be an array (1...n), or a dictionary; whichever,
+   -- the same indices must be used for the return table: dydt
+   local dydt = {}; ... ; return dydt 
  end
  y = initial_y(); t=0; dt=0.4;  -- the initial conditions
  -- For automatic timestep adjustment ...
@@ -375,11 +377,11 @@ RungeKutta.lua - Integrating Systems of Differential Equations
    display(t, y)
  end
  -- alternatively, though not so accurate ...
- t, y = rk2(y, dydt, t, dt);   -- Heun's 2nd-order method
+ t, y = RK.rk2(y, dydt, t, dt)   -- Heun's 2nd-order method
 
  -- or, also available ...
- (t, y) = rk4_classical(y, dydt, t, dt); -- Runge-Kutta 4th-order
- (t, y) = rk4_ralston(y, dydt, t, dt);   -- Ralston's 4th-order
+ t, y = RK.rk4_classical(y, dydt, t, dt) -- Runge-Kutta 4th-order
+ t, y = RK.rk4_ralston(y, dydt, t, dt)   -- Ralston's 4th-order
 
 =head1 DESCRIPTION
 
@@ -419,7 +421,7 @@ be helpful in solving systems of differential equations which arise
 within a I<Lua> context, such as economic, financial, demographic
 or ecological modelling, mechanical or process dynamics, etc.
 
-Version 1.06
+Version 1.07
 
 =head1 FUNCTIONS
 
